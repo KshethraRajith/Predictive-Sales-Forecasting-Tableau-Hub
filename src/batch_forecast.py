@@ -27,8 +27,8 @@ def batch_forecast(aggregated_csv: str = "output/aggregated_sales.csv", periods:
 
     outputs = []
     for _, row in groups.iterrows():
-        region = row[0]
-        product = row[1]
+        region = row['region']
+        product = row['product_category']
         rname = _safe_name(region)
         pname = _safe_name(product)
         suffix = f"{rname}_{pname}"
