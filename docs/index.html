@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Predictive Sales Forecast - Demo</title>
+    <script src="https://cdn.plot.ly/plotly-2.25.2.min.js"></script>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      header { display:flex; align-items:center; justify-content:space-between; }
+      #plot { width:100%; height:600px; }
+      .controls { margin: 12px 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Predictive Sales Forecast — Demo</h1>
+      <div>
+        <a href="https://github.com/KshethraRajith/Predictive-Sales-Forecasting-Tableau-Hub" target="_blank">View source code</a>
+      </div>
+    </header>
+
+    <p>This demo page shows pre-computed forecasts with 95% confidence bands. Use the selector to choose a series.</p>
+
+    <div class="controls">
+      <label for="series">Choose series:</label>
+      <select id="series"></select>
+      <button id="download">Download CSV</button>
+    </div>
+
+    <div id="plot"></div>
+
+    <script>
+      const files = {
+        'North — Gadgets': 'data/forecast_north_gadgets.csv',
+        'North — Widgets': 'data/forecast_north_widgets.csv',
+        'South — Gadgets': 'data/forecast_south_gadgets.csv',
+        'South — Widgets': 'data/forecast_south_widgets.csv'
+      };
+
+      const select = document.getElementById('series');
+      Object.keys(files).forEach(k => {
+        const opt = document.createElement('option'); opt.value = files[k]; opt.textContent = k; select.appendChild(opt);
+      });
+
+      async function loadCsv(url) {
+        const res = await fetch(url);
+        const text = await res.text();
+        const lines = text.trim().split('\n');
+        const hdr = lines[0].split(',').map(s=>s.trim());
+        const rows = lines.slice(1).map(r => r.split(',').map(c=>c.trim()));
+        const obj = {};
+        hdr.forEach((h,i)=> obj[h] = rows.map(r=> r[i]));
+        // convert types
+        obj.date = obj.date.map(d => new Date(d));
+        obj.forecast = obj.forecast.map(Number);
+        obj.lower_95 = obj.lower_95.map(Number);
+        obj.upper_95 = obj.upper_95.map(Number);
+        return obj;
+      }
+
+      async function draw(url) {
+        const d = await loadCsv(url);
+        const trace_mean = { x: d.date, y: d.forecast, mode:'lines+markers', name:'Forecast', line:{color:'#1f77b4'} };
+        const trace_upper = { x: d.date, y: d.upper_95, mode:'lines', name:'Upper 95', line:{color:'rgba(31,119,180,0.15)'} };
+        const trace_lower = { x: d.date, y: d.lower_95, mode:'lines', name:'Lower 95', line:{color:'rgba(31,119,180,0.15)'} };
+        const fill = {
+          x: [...d.date, ...d.date.slice().reverse()],
+          y: [...d.upper_95, ...d.lower_95.slice().reverse()],
+          fill: 'toself', fillcolor: 'rgba(31,119,180,0.15)', line: {width:0}, name: '95% CI', hoverinfo:'skip'
+        };
+
+        const layout = { title: 'Forecast with 95% CI', xaxis:{title:'Date'}, yaxis:{title:'Sales'}, margin:{t:40} };
+        Plotly.newPlot('plot', [fill, trace_mean], layout, {responsive:true});
+      }
+
+      select.addEventListener('change', ()=> draw(select.value));
+      document.getElementById('download').addEventListener('click', ()=> { window.open(select.value, '_blank'); });
+
+      // initial draw
+      draw(select.value || Object.values(files)[0]);
+    </script>
+  </body>
+</html>
